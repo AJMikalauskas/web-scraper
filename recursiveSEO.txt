@@ -1,11 +1,6 @@
 const puppeteer = require("puppeteer");
 var JSSoup = require('jssoup').default;
 
-
-// Global Storage of URLs
-const allUrls = [];
-let alreadySearchedThroughPages = [];
-
 async function webScraper(url) {
     // Replicates opening browser, new page, and going to a url with that page
     const browser = await puppeteer.launch();
@@ -13,15 +8,13 @@ async function webScraper(url) {
     //const tstVal = document.querySelector("#MainContent").children[4];
     //console.log(tst.children.length)
 
+    // pass in URL as param later
     await page.goto(url);
     let childrenToIterate = await page.evaluate(() => {
         let idsOfChildren = [];
-        // Make hrefs a dictionary so that we can remove repeat URLs
-        let linksToOtherPages =  {};
-        // let aHrefs = [];
+        let aHrefs = [];
         let imgSrcs = [];
         let specialInstancesOfTextInParent = [];
-
         function recurseThroughTags(currentParent, specifier) {
             for(var i = 0; i < currentParent.children.length; i++)
             {
@@ -45,9 +38,9 @@ async function webScraper(url) {
                     let noChildrenClassId = currentParent.children[i].className ? `.${currentParent.children[i].className}` 
                     : currentParent.children[i].id ? `#${currentParent.children[i].id}` : "";
                     let noChildrenTagAndClassId = `${noChildrenTag} ${noChildrenClassId ? noChildrenClassId : ""}`;
-                    // add to ternary for currentParent.children[i].innerText.trim() != ""
-                    let textOfLowestChild = currentParent.children[i].innerText ? currentParent.children[i].innerText 
+                    let textOfLowestChild = currentParent.children[i].innerText.trim() != "" ? currentParent.children[i].innerText 
                     : currentParent.children[i].innerHTML ? currentParent.children[i].innerHTML : "";
+
                     // ${specifier} > ${tagAndClassId} > ${noChildrenTagAndClassId}
                     let specifierCheck = specifier != undefined ? `${specifier} > ${tagAndClassId} > ${noChildrenTagAndClassId}`
                     : `${tagAndClassId} > ${noChildrenTagAndClassId}`;
@@ -56,15 +49,11 @@ async function webScraper(url) {
                         // May not be final logic, these handle the instance where an a tag of img tag has no children
                             // Is by default the img tag going to have no children?
                             // Correct Amount of imgSrcs but I don't know about aHrefs, test it in another page?
-                            // How to optimize a tag logic, maybe not and even if I did would it really quote and quote optimize
-                            // the code? It would just be another complicated if statement after this and I know that scope is very wide in
-                            // JS, but that would probably abuse scope.
                     if(noChildrenTag == "a" || noChildrenTag == "img")
                     {
-                        let hrefLink = currentParent.children[i].href;
-                        if(noChildrenTag == "a" && !Object.keys(linksToOtherPages).includes(hrefLink))
+                        if(noChildrenTag == "a")
                         {
-                            linksToOtherPages[hrefLink]  = specifierCheck;
+                            aHrefs.push({ specifier: specifierCheck, hrefLink: currentParent.children[i].href})
                         } else if(noChildrenTag =="img"){
                             imgSrcs.push({ specifier: specifierCheck, srcLink: currentParent.children[i].src})
                         }
@@ -78,15 +67,11 @@ async function webScraper(url) {
                     // of its children. 
                 if(i == currentParent.children.length - 1)
                 {
-                    let hrefLink = currentParent.href;
-                    if(tag == "a" && !Object.keys(linksToOtherPages).includes(hrefLink))
+                    if(tag == "a")
                     {
                         let specifierForATag = specifier != undefined ? `${specifier} > ${tagAndClassId}`: `${tagAndClassId}`;
-                        linksToOtherPages[hrefLink] = specifierForATag;
+                        aHrefs.push({ specifier: specifierForATag, hrefLink: currentParent.href})
                     } 
-
-                    // This is to account for the times where there is text in the currentParent
-                    // May need to remove cases where the text is only escape characters such as \n or \t
                     const allNodesIncludingTxtOfParent = Array.from(currentParent.childNodes);
                     let filteredOutTags = allNodesIncludingTxtOfParent.filter(element => 
                          element.tagName == undefined
@@ -105,7 +90,7 @@ async function webScraper(url) {
                 }
             }
         }
-        const topLevelTag = document.querySelector("body");
+        const topLevelTag = document.querySelector("#MainContent");
         recurseThroughTags(topLevelTag);
 
         // let tagName = iterableSubFourChild.tagName.toLowerCase();
@@ -136,75 +121,23 @@ async function webScraper(url) {
 
         //var soup = new JSSoup(`${document.querySelector("#MainContent").children[2].innerHTML}`);
         //var tag = soup.find(text=True, recursive=False);
-        // const testChild = Array.from(document.querySelector('#MainContent').children[1].childNodes);
-        // let filteredOutChildren = testChild.filter(element => 
-        //      element.tagName == undefined
-        // )
+        const testChild = Array.from(document.querySelector('#MainContent').children[1].childNodes);
+        let filteredOutChildren = testChild.filter(element => 
+             element.tagName == undefined
+        )
         // childNodes will select all nodes inclduing just the text that isn't actually a child tag but just child text.
-        //const testChild1 = document.querySelector("#MainContent").children[4].children[0].children[0].children[0].children[1].children[0];
-        // Testing Dictionaries
-        const dict = {
-            example1: "example",
-            "test1": "test",
-            "test3": "test2"
-        }
-        //Object.values(dict).includes("text2")
-
-        return linksToOtherPages;
+        const testChild1 = document.querySelector("#MainContent").children[4].children[0].children[0].children[0].children[1].children[0];
+        return specialInstancesOfTextInParent;
        // How to add imgSrcs and aHrefs to return with idsOfChildren?
     })
-    // if(Object.values(childrenToIterate).includes(url))
-    // {
-    // }
-    // Filter out current page URL --> may change to be based on values later based on keys as URLS/Hrefs for now
-    alreadySearchedThroughPages.push(url);
-    let newListOfPages = Object.keys(childrenToIterate)
-        .filter(keyHrefLink => !alreadySearchedThroughPages.includes(url) && keyHrefLink.trim() !== "" && !allUrls.includes(keyHrefLink))
-        .reduce((acc,key) => {
-            acc[key] = childrenToIterate[key]; 
-            return acc;
-        }, {});
-        // The 1st if check is to check to make syure we aren't adding the current url to the urls we still need to go through 
-        // and not adding URLs that we've already went through; 2nd if check s just to remove the weird instace of URL where it was empty string
-        // The 3rd check is to filter out urls that are already in global allUrls, 
-        // if filter returns false not added to filtered array, in filter above too
-
-    //console.log(Object.keys(newListOfPages))
-    //console.log(newListOfPages);
-
-    // for(var urlsFromIdx = 0; urlsFromIdx < Object.keys(newListOfPages).length; urlsFromIdx++)
-    // {
-        // Call webScraper(Object.keys(newListOfPages)[urlsFromIdx])
-        // Doing so would be the long call of all URLS, will do later?
-    // }
-
+    console.log(childrenToIterate);
     await browser.close();
-    //console.log(newListOfPages);
-    return newListOfPages;
 };
 
-async function goThroughPageUrls() {
-    let homePageUrls = await webScraper("http://omegajuicers.staging2.searchside.com/pages/juicer-index");
-    //console.log(Object.keys(homePageUrls).length);
-    //Object.keys(homePageUrls).length
-    for(var urlsFromIdx = 0; urlsFromIdx < Object.keys(homePageUrls).length; urlsFromIdx++)
-    {
-        //console.log(Object.keys(homePageUrls)[urlsFromIdx]);
-        let currentUrlBeingSearched = Object.keys(homePageUrls)[urlsFromIdx];
-        console.log(currentUrlBeingSearched)
-        let urlsOnAPage = await webScraper(currentUrlBeingSearched);
-        allUrls.push(...Object.keys(urlsOnAPage));
-        console.log(`Added ${Object.keys(urlsOnAPage).length} URLs; 
-        New Url Count: ${allUrls.length}, Old Url Count: ${allUrls.length - Object.keys(urlsOnAPage).length}`);
-    }
-    // Call webScraper(Object.keys(homePageUrls)[urlsFromIdx])
-    // Doing so would be the long call of all URLS, will do later?
-    //let urlsOnAPage = await webScraper(Object.keys(homePageUrls)[0]);
-    //allUrls.push({ urlsInChildUrl: Object.keys(urlsOnAPage).length});
+webScraper("http://omegajuicers.staging2.searchside.com/pages/juicer-index");
 
-    // Need to filter out the results we already have
-}
+// const addTwoNums = (a,b)  => {
+//     return a+b;
+// }
 
-goThroughPageUrls();
-//console.log(allUrls.length);
-//console.log(allUrls);
+// addTwoNums(3,4);
