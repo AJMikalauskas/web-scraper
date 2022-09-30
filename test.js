@@ -14,6 +14,7 @@ async function webScraper(url) {
     //console.log(tst.children.length)
 
     await page.goto(url);
+    console.log(url);
     let childrenToIterate = await page.evaluate(() => {
         let idsOfChildren = [];
         // Make hrefs a dictionary so that we can remove repeat URLs
@@ -143,11 +144,11 @@ async function webScraper(url) {
         // childNodes will select all nodes inclduing just the text that isn't actually a child tag but just child text.
         //const testChild1 = document.querySelector("#MainContent").children[4].children[0].children[0].children[0].children[1].children[0];
         // Testing Dictionaries
-        const dict = {
-            example1: "example",
-            "test1": "test",
-            "test3": "test2"
-        }
+        // const dict = {
+        //     example1: "example",
+        //     "test1": "test",
+        //     "test3": "test2"
+        // }
         //Object.values(dict).includes("text2")
 
         return linksToOtherPages;
@@ -158,25 +159,27 @@ async function webScraper(url) {
     // }
     // Filter out current page URL --> may change to be based on values later based on keys as URLS/Hrefs for now
     alreadySearchedThroughPages.push(url);
+    //console.log(childrenToIterate)
     let newListOfPages = Object.keys(childrenToIterate)
-        .filter(keyHrefLink => !alreadySearchedThroughPages.includes(url) && keyHrefLink.trim() !== "" && !allUrls.includes(keyHrefLink))
+        .filter(keyHrefLink => !alreadySearchedThroughPages.includes(keyHrefLink) && keyHrefLink.trim() !== "" && !allUrls.includes(keyHrefLink))
         .reduce((acc,key) => {
             acc[key] = childrenToIterate[key]; 
             return acc;
         }, {});
+    //console.log(newListOfPages)
         // The 1st if check is to check to make syure we aren't adding the current url to the urls we still need to go through 
         // and not adding URLs that we've already went through; 2nd if check s just to remove the weird instace of URL where it was empty string
         // The 3rd check is to filter out urls that are already in global allUrls, 
         // if filter returns false not added to filtered array, in filter above too
 
-    //console.log(Object.keys(newListOfPages))
-    //console.log(newListOfPages);
+        //console.log(Object.keys(newListOfPages))
+        //console.log(newListOfPages);
 
-    // for(var urlsFromIdx = 0; urlsFromIdx < Object.keys(newListOfPages).length; urlsFromIdx++)
-    // {
+        // for(var urlsFromIdx = 0; urlsFromIdx < Object.keys(newListOfPages).length; urlsFromIdx++)
+        // {
         // Call webScraper(Object.keys(newListOfPages)[urlsFromIdx])
         // Doing so would be the long call of all URLS, will do later?
-    // }
+        // }
 
     await browser.close();
     //console.log(newListOfPages);
