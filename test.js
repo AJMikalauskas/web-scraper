@@ -196,44 +196,207 @@ async function webScraper(url) {
     //console.log(newListOfPages);
     return newListOfPages;
 };
+// Optimization May be possible for webScraper() if I wasn't searching for the many different things 
+// including imgs and more.
+// I added functions below to handle seeing if images have the alt tags
+// Also, I added SEO checks for the head tag inclduing the description, title, keywords
+// async function goThroughPageUrls() {
+//     let homePageUrls = await webScraper("http://omegajuicers.staging2.searchside.com/pages/juicer-index");
+//     //console.log(Object.keys(homePageUrls).length);
+//     //Object.keys(homePageUrls).length
+//     for(var urlsFromIdx = 0; urlsFromIdx < Object.keys(homePageUrls).length; urlsFromIdx++)
+//     {
+//         //console.log(Object.keys(homePageUrls)[urlsFromIdx]);
+//         let currentUrlBeingSearched = Object.keys(homePageUrls)[urlsFromIdx];
+//         console.log(currentUrlBeingSearched)
+//         let urlsOnAPage = await webScraper(currentUrlBeingSearched);
+//         allUrls.push(...Object.keys(urlsOnAPage));
+//         // AllUrls would be ever increasing --> This would take forever, but I wish we coukdlld grow in time complexity exponentially based on 
+//         // there being more results would actually help because you could break from the for loop in recursion rather than adding every url
+//         // and then filtering
+//         for(var urlInAllUrls = 0; urlInAllUrls < allUrls.length; urlInAllUrls++)
+//         {
+//             let innerMoreUrls = await webScraper(allUrls[urlInAllUrls]);
+//             allUrls.push(...Object.keys(innerMoreUrls));
+//         }
+//         console.log(`Added ${Object.keys(urlsOnAPage).length} URLs; 
+//         New Url Count: ${allUrls.length}, Old Url Count: ${allUrls.length - Object.keys(urlsOnAPage).length}`);
+//     }
+//     // Call webScraper(Object.keys(homePageUrls)[urlsFromIdx])
+//     // Doing so would be the long call of all URLS, will do later?
+//     //let urlsOnAPage = await webScraper(Object.keys(homePageUrls)[0]);
+//     //allUrls.push({ urlsInChildUrl: Object.keys(urlsOnAPage).length});
 
-async function goThroughPageUrls() {
+//     // Need to filter out the results we already have
+//     let end = new Date();
+//     console.log(`${end}`);
+// }
+// function timeTheRecursion() { 
+//     let start = new Date();
+//     console.log(`${start}`);
+
+//     goThroughPageUrls();
+    
+// }
+// timeTheRecursion();
+
+// Get all information SEO related image alt checks and head checks
+async function webScraperHeaderSeo(url) {
+    // Replicates opening browser, new page, and going to a url with that page
+    const browser = await puppeteer.launch();
+    const page = await browser.newPage();
+
+    await page.goto(url);
+    //console.log(url);
+     let childrenToIterate = await page.evaluate(() => {
+        let imgTags = [];
+
+        function recurseThroughTags(currentParent, specifier) {
+            for(var i = 0; i < currentParent.children.length; i++)
+            {
+                // add to specifier by += and >
+                let tag = currentParent.tagName.toLowerCase();
+                let classId = currentParent.className ? `.${currentParent.className}` 
+                : currentParent.id ? `#${currentParent.id}` : "";
+                let tagAndClassId = `${tag} ${classId ? classId: ""}`;
+                let noChildrenTag = currentParent.children[i].tagName.toLowerCase();
+
+                // Children Recursion Logic
+                if(currentParent.children[i].children.length > 0)
+                {
+                    //console.log(tagAndClassId);
+                    // ${!!specifier ? `${specifier} > ${tagAndClassId}` : `${tagAndClassId}`}
+                    let specifierParam = specifier != undefined ? `${specifier} > ${tagAndClassId}`: `${tagAndClassId}`;
+                    recurseThroughTags(currentParent.children[i], specifierParam)
+                }
+                else if(noChildrenTag === "img")
+                {
+                    let noChildrenClassId = currentParent.children[i].className ? `.${currentParent.children[i].className}` 
+                    : currentParent.children[i].id ? `#${currentParent.children[i].id}` : "";
+                    let noChildrenTagAndClassId = `${noChildrenTag} ${noChildrenClassId ? noChildrenClassId : ""}`;
+                    let specifierCheck = specifier != undefined ? `${specifier} > ${tagAndClassId} > ${noChildrenTagAndClassId}`
+                    : `${tagAndClassId} > ${noChildrenTagAndClassId}`;
+
+                    // I don't see where the img tag would be a parent tag in any case, did about 10 searches and found nothing
+                        // need if for noChildrenTag being img
+                    imgTags.push({ specifier: specifierCheck, altTagExists: currentParent.children[i].alt != ""})
+                }
+            }
+        }
+        const imgsInBody = document.querySelector("body");
+        recurseThroughTags(imgsInBody);
+
+        // const testImgTag = document.querySelector("#MainContent").children[4].children[0].children[0].
+        // children[0].children[1].children[0].children[0].alt;
+            // Typescript mentality to not just change the preset false value to th string of content
+            // Need icon ico link rel in head for pages too, but won't add here for now
+        const metaSeoChecks = { description: { content: "", exists:false}, charset: {exists:false},
+        keywords: { content: "", exists:false}, viewport: { content: "", exists:false}, 
+        httpEquiv: { httpEquivTxt: "", content: "", exists:false},
+        title: { content: "", exists:false}};
+        const otherMetaTagsAndSeo = [];
+        function recurseThroughHeaderTags(currentParent) {
+            for(var i = 0; i < currentParent.children.length; i++)
+            {
+                let currentChildTagName = currentParent.children[i].tagName.toLowerCase(); 
+                if(currentChildTagName === "meta")
+                {
+                    if(currentParent.children[i].name !== "")
+                    {
+                        let metaTagNameProperty = currentParent.children[i].name;
+                        switch(metaTagNameProperty) {
+                            case "description": 
+                                metaSeoChecks.description.content = currentParent.children[i].content;
+                                metaSeoChecks.description.exists = true;
+                                break;
+                            case "keywords": 
+                                metaSeoChecks.keywords.content = currentParent.children[i].content;
+                                metaSeoChecks.keywords.exists = true;
+                                break;
+                            case "viewport": 
+                                metaSeoChecks.viewport.content = currentParent.children[i].content;
+                                metaSeoChecks.viewport.exists = true;
+                                break;
+                            default:
+                                otherMetaTagsAndSeo.push(currentParent.children[i]);
+                        }
+                    } else if(currentParent.children[i].attributes[0].textContent == "utf-8")
+                    {
+                        metaSeoChecks.charset.exists = true;
+                    } else if(currentParent.children[i].httpEquiv !== "")
+                    {   
+                        metaSeoChecks.httpEquiv.httpEquivTxt = currentParent.children[i].httpEquiv;
+                        metaSeoChecks.httpEquiv.content = currentParent.children[i].content;
+                        metaSeoChecks.httpEquiv.exists = true;
+                    } 
+                } else if(currentChildTagName === "title") {
+                    metaSeoChecks.title.content = currentParent.children[i].textContent;
+                    metaSeoChecks.title.exists = true;
+                }
+            }
+        }
+        const headerSeo = document.querySelector("head");
+        recurseThroughHeaderTags(headerSeo);
+        //const tstHeaderSeo = document.querySelector("head").children[1].attributes[0].textContent;
+
+        return {imgTags, metaSeoChecks};
+    })
+        // {imgTags};
+       // How to add imgSrcs and aHrefs to return with idsOfChildren? --> can return as object and accessValues if neccessary
+   // })
+    //console.log(childrenToIterate.imgTags);
+    //console.log(childrenToIterate.metaSeoChecks)
+    // Filter out current page URL --> may change to be based on values later based on keys as URLS/Hrefs for now
+    // alreadySearchedThroughPages.push(url);
+    // let newListOfPages = Object.keys(childrenToIterate)
+    //     .filter(keyHrefLink => !alreadySearchedThroughPages.includes(keyHrefLink) && keyHrefLink.trim() !== "" && !allUrls.includes(keyHrefLink))
+    //     .reduce((acc,key) => {
+    //         acc[key] = childrenToIterate[key]; 
+    //         return acc;
+    //     }, {});
+    await browser.close();
+    return {imgTags: childrenToIterate.imgTags, metaSeoChecks: childrenToIterate.metaSeoChecks};
+};
+// webScraperHeaderSeo("http://omegajuicers.staging2.searchside.com/pages/juicer-index");
+
+async function goThroughPageUrlsSeo() {
     let homePageUrls = await webScraper("http://omegajuicers.staging2.searchside.com/pages/juicer-index");
-    //console.log(Object.keys(homePageUrls).length);
-    //Object.keys(homePageUrls).length
     for(var urlsFromIdx = 0; urlsFromIdx < Object.keys(homePageUrls).length; urlsFromIdx++)
     {
         //console.log(Object.keys(homePageUrls)[urlsFromIdx]);
         let currentUrlBeingSearched = Object.keys(homePageUrls)[urlsFromIdx];
         console.log(currentUrlBeingSearched)
-        let urlsOnAPage = await webScraper(currentUrlBeingSearched);
-        allUrls.push(...Object.keys(urlsOnAPage));
-        // AllUrls would be ever increasing --> This would take forever, but I wish we coukdlld grow in time complexity exponentially based on 
-        // there being more results would actually help because you could break from the for loop in recursion rather than adding every url
-        // and then filtering
-        for(var urlInAllUrls = 0; urlInAllUrls < allUrls.length; urlInAllUrls++)
+        let seoChecks = await webScraperHeaderSeo(currentUrlBeingSearched);
+        // allUrls.push(...Object.keys(urlsOnAPage));
+        let imgsThatNeedAltTags = seoChecks.imgTags.filter(img => !img.altTagExists);
+        if(imgsThatNeedAltTags.length > 0)
         {
-            let innerMoreUrls = await webScraper(allUrls[urlInAllUrls]);
-            allUrls.push(...Object.keys(innerMoreUrls));
+            for(let imgNeedingFixingNum = 0; imgNeedingFixingNum < imgsThatNeedAltTags.length; imgNeedingFixingNum++)
+            {
+                console.log(`Need to add alt tag description to this image specifier: ${imgsThatNeedAltTags[imgNeedingFixingNum].specifier}`)
+            }
+        } else {
+            console.log("This Page Has No Img Tags To Fix, Great!")
         }
-        console.log(`Added ${Object.keys(urlsOnAPage).length} URLs; 
-        New Url Count: ${allUrls.length}, Old Url Count: ${allUrls.length - Object.keys(urlsOnAPage).length}`);
+        for (const seoProperty in seoChecks.metaSeoChecks) {
+            if(!seoChecks.metaSeoChecks[seoProperty].exists)
+            {
+                console.log(seoProperty);
+                console.log(`I'd recommend you add ${seoProperty} to the head`)
+            } 
+            // else {
+              //  console.log(`Great, it seems you included ${seoProperty}`)
+            // }
+        }
     }
-    // Call webScraper(Object.keys(homePageUrls)[urlsFromIdx])
-    // Doing so would be the long call of all URLS, will do later?
-    //let urlsOnAPage = await webScraper(Object.keys(homePageUrls)[0]);
-    //allUrls.push({ urlsInChildUrl: Object.keys(urlsOnAPage).length});
-
-    // Need to filter out the results we already have
     let end = new Date();
     console.log(`${end}`);
 }
-function timeTheRecursion() { 
-    let start = new Date();
-    console.log(`${start}`);
 
-    goThroughPageUrls();
-    
+function timeTheRecursion() { 
+     let start = new Date();
+     console.log(`${start}`);
+     goThroughPageUrlsSeo();
 }
 timeTheRecursion();
-
+//goThroughPageUrlsSeo();
