@@ -6,6 +6,17 @@ var JSSoup = require('jssoup').default;
 const allUrls = [];
 let alreadySearchedThroughPages = [];
 
+// This function has the ability to get all the URLs, image sources and more
+    // - idsOfChildren loops thorugh everything and finds bottomomost child elements that don't have children and prints them and 
+    // the text inside them, Array of object, could be a dictionary if necessary
+        // - linksToOtherPages finds all the a tags whether they're parents or child tags and adds them to this dictionary/object
+        // Logic could be optimized for thit but it also works for the times where there is text within a parent component
+            // - imgSrcs gets the image sources, The logic assumes that the image tags are always children, they will never 
+            // be parent tags to other child tags.
+                // specialInstancesOfTextInParent handles the cases where there is text in the parent component that isn't accounted
+                // for due to .children only containg children tags while childNodes contains both the tags and text at parent level
+// Takes about 10 minutes when going though about 150 URLs and pulling and filtering them to add into an array containing all URLs to 
+    // loop through
 async function webScraper(url) {
     // Replicates opening browser, new page, and going to a url with that page
     const browser = await puppeteer.launch();
@@ -166,7 +177,7 @@ async function webScraper(url) {
             acc[key] = childrenToIterate[key]; 
             return acc;
         }, {});
-    //console.log(newListOfPages)
+        //console.log(newListOfPages)
         // The 1st if check is to check to make syure we aren't adding the current url to the urls we still need to go through 
         // and not adding URLs that we've already went through; 2nd if check s just to remove the weird instace of URL where it was empty string
         // The 3rd check is to filter out urls that are already in global allUrls, 
@@ -197,6 +208,14 @@ async function goThroughPageUrls() {
         console.log(currentUrlBeingSearched)
         let urlsOnAPage = await webScraper(currentUrlBeingSearched);
         allUrls.push(...Object.keys(urlsOnAPage));
+        // AllUrls would be ever increasing --> This would take forever, but I wish we coukdlld grow in time complexity exponentially based on 
+        // there being more results would actually help because you could break from the for loop in recursion rather than adding every url
+        // and then filtering
+        for(var urlInAllUrls = 0; urlInAllUrls < allUrls.length; urlInAllUrls++)
+        {
+            let innerMoreUrls = await webScraper(allUrls[urlInAllUrls]);
+            allUrls.push(...Object.keys(innerMoreUrls));
+        }
         console.log(`Added ${Object.keys(urlsOnAPage).length} URLs; 
         New Url Count: ${allUrls.length}, Old Url Count: ${allUrls.length - Object.keys(urlsOnAPage).length}`);
     }
@@ -206,8 +225,15 @@ async function goThroughPageUrls() {
     //allUrls.push({ urlsInChildUrl: Object.keys(urlsOnAPage).length});
 
     // Need to filter out the results we already have
+    let end = new Date();
+    console.log(`${end}`);
 }
+function timeTheRecursion() { 
+    let start = new Date();
+    console.log(`${start}`);
 
-goThroughPageUrls();
-//console.log(allUrls.length);
-//console.log(allUrls);
+    goThroughPageUrls();
+    
+}
+timeTheRecursion();
+
