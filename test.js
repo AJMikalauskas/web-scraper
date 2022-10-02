@@ -200,37 +200,37 @@ async function webScraper(url) {
 // including imgs and more.
 // I added functions below to handle seeing if images have the alt tags
 // Also, I added SEO checks for the head tag inclduing the description, title, keywords
-// async function goThroughPageUrls() {
-//     let homePageUrls = await webScraper("http://omegajuicers.staging2.searchside.com/pages/juicer-index");
-//     //console.log(Object.keys(homePageUrls).length);
-//     //Object.keys(homePageUrls).length
-//     for(var urlsFromIdx = 0; urlsFromIdx < Object.keys(homePageUrls).length; urlsFromIdx++)
-//     {
-//         //console.log(Object.keys(homePageUrls)[urlsFromIdx]);
-//         let currentUrlBeingSearched = Object.keys(homePageUrls)[urlsFromIdx];
-//         console.log(currentUrlBeingSearched)
-//         let urlsOnAPage = await webScraper(currentUrlBeingSearched);
-//         allUrls.push(...Object.keys(urlsOnAPage));
-//         // AllUrls would be ever increasing --> This would take forever, but I wish we coukdlld grow in time complexity exponentially based on 
-//         // there being more results would actually help because you could break from the for loop in recursion rather than adding every url
-//         // and then filtering
-//         for(var urlInAllUrls = 0; urlInAllUrls < allUrls.length; urlInAllUrls++)
-//         {
-//             let innerMoreUrls = await webScraper(allUrls[urlInAllUrls]);
-//             allUrls.push(...Object.keys(innerMoreUrls));
-//         }
-//         console.log(`Added ${Object.keys(urlsOnAPage).length} URLs; 
-//         New Url Count: ${allUrls.length}, Old Url Count: ${allUrls.length - Object.keys(urlsOnAPage).length}`);
-//     }
-//     // Call webScraper(Object.keys(homePageUrls)[urlsFromIdx])
-//     // Doing so would be the long call of all URLS, will do later?
-//     //let urlsOnAPage = await webScraper(Object.keys(homePageUrls)[0]);
-//     //allUrls.push({ urlsInChildUrl: Object.keys(urlsOnAPage).length});
+async function goThroughPageUrls() {
+    let homePageUrls = await webScraper("http://omegajuicers.staging2.searchside.com/pages/juicer-index");
+    //console.log(Object.keys(homePageUrls).length);
+    //Object.keys(homePageUrls).length
+    for(var urlsFromIdx = 0; urlsFromIdx < Object.keys(homePageUrls).length; urlsFromIdx++)
+    {
+        //console.log(Object.keys(homePageUrls)[urlsFromIdx]);
+        let currentUrlBeingSearched = Object.keys(homePageUrls)[urlsFromIdx];
+        console.log(currentUrlBeingSearched)
+        let urlsOnAPage = await webScraper(currentUrlBeingSearched);
+        allUrls.push(...Object.keys(urlsOnAPage));
+        // AllUrls would be ever increasing --> This would take forever, but I wish we coukdlld grow in time complexity exponentially based on 
+        // there being more results would actually help because you could break from the for loop in recursion rather than adding every url
+        // and then filtering
+        for(var urlInAllUrls = 0; urlInAllUrls < allUrls.length; urlInAllUrls++)
+        {
+            let innerMoreUrls = await webScraper(allUrls[urlInAllUrls]);
+            allUrls.push(...Object.keys(innerMoreUrls));
+        }
+        console.log(`Added ${Object.keys(urlsOnAPage).length} URLs; 
+        New Url Count: ${allUrls.length}, Old Url Count: ${allUrls.length - Object.keys(urlsOnAPage).length}`);
+    }
+    // Call webScraper(Object.keys(homePageUrls)[urlsFromIdx])
+    // Doing so would be the long call of all URLS, will do later?
+    //let urlsOnAPage = await webScraper(Object.keys(homePageUrls)[0]);
+    //allUrls.push({ urlsInChildUrl: Object.keys(urlsOnAPage).length});
 
-//     // Need to filter out the results we already have
-//     let end = new Date();
-//     console.log(`${end}`);
-// }
+    // Need to filter out the results we already have
+    let end = new Date();
+    console.log(`${end}`);
+}
 // function timeTheRecursion() { 
 //     let start = new Date();
 //     console.log(`${start}`);
@@ -392,11 +392,11 @@ async function goThroughPageUrlsSeo() {
     let end = new Date();
     console.log(`${end}`);
 }
-
-function timeTheRecursion() { 
-     let start = new Date();
-     console.log(`${start}`);
-     goThroughPageUrlsSeo();
-}
-timeTheRecursion();
+//  Took 11 minutes and 16 seconds
+// function timeTheRecursion() { 
+//      let start = new Date();
+//      console.log(`${start}`);
+//      goThroughPageUrlsSeo();
+// }
+// timeTheRecursion();
 //goThroughPageUrlsSeo();
